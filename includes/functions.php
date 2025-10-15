@@ -104,9 +104,13 @@ function wdj_mp_parse_cards( string $html ) : array {
         $href  = $a->getAttribute( 'href' );                 // /movies/slug
         $title = trim( $xp->evaluate( 'string(./h4)', $a ) );
 
-        // Poster: first <img> within same card container
-        $img = $xp->evaluate( '(./ancestor::div[contains(@class,"exzlyda")][1]//img)[1]', $a )->item( 0 );
-        $poster = $img instanceof DOMElement ? wdj_mp_unwrap_next_image( $img->getAttribute( 'src' ) ) : '';
+        // poster in same card block
+        $img = $xp->evaluate('(./ancestor::div[contains(@class,"exzlyda")][1]//img)[1]', $a)->item(0);
+        $poster = '';
+        if ($img instanceof DOMElement) {
+            $poster = wdj_mp_get_poster_url($img); // direct CDN poster URL
+        }
+
 
         // Date buttons inside same card
         $btns = $xp->query( '(./ancestor::div[contains(@class,"exzlyda")][1]//button)[contains(@id,"preshow") or contains(@class,"exzlyda30")]' , $a );
@@ -138,10 +142,28 @@ function wdj_mp_parse_cards( string $html ) : array {
     return $items;
 }
 
+// Fetch Regal homepage once to reuse cookies and bypass basic bot filters
+function wdj_mp_get_regal_cookies() : array {
+    $res = wp_remote_get('https://www.regmovies.com/', array(
+        'timeout' => 20,
+        'headers' => array(
+            'User-Agent'      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+            'Accept'          => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language' => 'en-US,en;q=0.8',
+        ),
+    ));
+    if ( is_wp_error($res) ) return array();
+    $cookies = wp_remote_retrieve_cookies($res);
+    return is_array($cookies) ? $cookies : array();
+}
+
+
+
 /**
  * Fetch a Regal theater page and insert parsed movies.
  */
 function wdj_mp_refresh_from_theater_page( string $theater_url ) : void {
+
     $res = wp_remote_get( $theater_url, array(
         'timeout' => 25,
         'headers' => array(
@@ -162,9 +184,14 @@ function wdj_mp_refresh_from_theater_page( string $theater_url ) : void {
     $theater_value = wdj_mp_theater_label_from_url( $theater_url );
     $items = wdj_mp_parse_cards( $html );
 
-    foreach ( $items as $row ) {
-        wdj_mp_insert_movie_if_new( $row, $theater_value );
+    foreach ($items as $row) {
+        if (is_admin()) {
+            $row['posterSrc']    = wdj_mp_sideload_poster( wdj_mp_unwrap_next_image($row['posterSrc'] ?? '') );
+            $row['moviePicture'] = $row['posterSrc'];
+        }
+        wdj_mp_insert_movie_if_new($row, $theater_value);
     }
+
 }
 
 /**
@@ -189,4 +216,89 @@ function wdj_mp_get_movies_by_status( int $status ) : array {
         ORDER BY dateStarted DESC, featureTitle ASC
     ";
     return $wpdb->get_results( $wpdb->prepare( $sql, $status ) );
+}
+
+
+// Absolute URL helper
+function wdj_mp_abs_url(string $url) : string {
+    if ($url === '') return '';
+    if (strpos($url, '//') === 0)  return 'https:' . $url;
+    if ($url[0] === '/')           return 'https://www.regmovies.com' . $url;
+    return $url;
+}
+
+// Extract real poster URL from <img> with Next.js proxy
+function wdj_mp_img_poster_url(DOMElement $img) : string {
+    $srcset = $img->getAttribute('srcset');
+    $src    = $img->getAttribute('src');
+
+    $pick = $srcset ?: $src;
+    $pick = trim(explode(' ', $pick)[0]);                    // first candidate
+    $pick = wdj_mp_abs_url($pick);                           // ensure absolute
+
+    // unwrap /_next/image?url=ENCODED&...
+    $q = parse_url($pick, PHP_URL_QUERY);
+    if ($q) {
+        parse_str($q, $qs);
+        if (!empty($qs['url'])) return urldecode($qs['url']);
+    }
+    return $pick;
+}
+
+// Load media libs if needed
+function wdj_mp_maybe_load_media_libs() : bool {
+    if ( function_exists('media_sideload_image') ) return true;
+    $base = trailingslashit( ABSPATH ) . 'wp-admin/includes/';
+    foreach ( array('media.php','file.php','image.php') as $f ) {
+        $p = $base . $f;
+        if ( file_exists($p) ) include_once $p; else return false;
+    }
+    return function_exists('media_sideload_image');
+}
+
+/**
+ * Sideload a poster URL into Media Library. Returns local URL.
+ * Reuses an attachment if already downloaded for this source URL.
+ */
+function wdj_mp_sideload_poster( string $url ) : string {
+    if ( $url === '' ) return '';
+    global $wpdb;
+
+    // reuse if we saved this exact source before
+    $aid = (int) $wpdb->get_var( $wpdb->prepare(
+        "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_wdj_source_url' AND meta_value = %s LIMIT 1",
+        $url
+    ) );
+    if ( $aid ) {
+        $u = wp_get_attachment_url( $aid );
+        return $u ?: $url;
+    }
+
+    if ( ! wdj_mp_maybe_load_media_libs() ) return $url;
+
+    // no parent post
+    $att_id = media_sideload_image( $url, 0, null, 'id' );
+    if ( is_wp_error( $att_id ) ) return $url;
+
+    add_post_meta( $att_id, '_wdj_source_url', $url, true );
+    $local = wp_get_attachment_url( $att_id );
+    return $local ?: $url;
+}
+// Extract real poster URL from Regal's Next.js <img> tag
+function wdj_mp_get_poster_url( DOMElement $img ) : string {
+    $srcset = $img->getAttribute('srcset');
+    $src    = $img->getAttribute('src');
+    $raw    = trim(explode(' ', $srcset ?: $src)[0]);
+
+    // Make absolute URL if needed
+    if ( strpos($raw, '//') === 0 ) $raw = 'https:' . $raw;
+    elseif ( strpos($raw, '/') === 0 ) $raw = 'https://www.regmovies.com' . $raw;
+
+    // Unwrap Next.js proxy e.g. /_next/image?url=ENCODED&...
+    $q = parse_url($raw, PHP_URL_QUERY);
+    if ($q) {
+        parse_str($q, $qs);
+        if (!empty($qs['url'])) return urldecode($qs['url']);
+    }
+    return $raw;
 }

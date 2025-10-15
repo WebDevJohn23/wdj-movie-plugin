@@ -24,6 +24,16 @@ add_shortcode('wdj_movies', function( $atts ){
     ob_start();
     ?>
     <style>
+        .wdj-header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: orangered;
+            color: #000;
+            text-align: center;
+            padding: 4px 0;
+            font-weight: 600;
+            border-bottom: 1px solid #000;}
         .wdj-header{padding:1px;background:orangered;color:black;width:100%;text-align:center;margin:24px 0 8px}
         table.wdj{width:100%}
         table.wdj td{text-align:center;font-size:18px}
@@ -86,6 +96,9 @@ function wdj_mp_render_shortcode_section( int $status ) : void {
         $code   = esc_attr($row->code);
         $title  = esc_html( html_entity_decode( (string)$row->featureTitle, ENT_QUOTES ) );
         $poster = esc_url( (string)$row->posterSrc );
+        if ($poster==''){
+            $poster = 'https://www.nyfa.edu/wp-content/uploads/2022/11/Blank-Movie-Poster1.jpg';
+        }
         $url    = esc_url( (string)$row->url );
         $theaters = explode(',', (string)$row->theaters);
         $date   = $row->dateStarted ? esc_html( date_i18n('m/d/Y', strtotime($row->dateStarted)) ) : '';
@@ -101,13 +114,13 @@ function wdj_mp_render_shortcode_section( int $status ) : void {
         echo '            <div class="flip-box-back"><br/>';
 
         if ($status === 0) {
-            echo '  <div onclick="wdjLoaddata(\''.$code.'\',\'1\')"><h2>Watched</h2></div><br/><br/>';
+            echo '  <div onclick="wdjLoaddata(\''.$code.'\',\'1\')"><h2>Watched</h2></div><br/>';
             echo '  <div onclick="wdjLoaddata(\''.$code.'\',\'2\')"><h2>Not Interested</h2></div>';
         } elseif ($status === 1) {
-            echo '  <div onclick="wdjLoaddata(\''.$code.'\',\'0\')"><h2>Not Watched</h2></div><br/><br/>';
+            echo '  <div onclick="wdjLoaddata(\''.$code.'\',\'0\')"><h2>Not Watched</h2></div><br/>';
             echo '  <div onclick="wdjLoaddata(\''.$code.'\',\'2\')"><h2>Not Interested</h2></div>';
         } else {
-            echo '  <div onclick="wdjLoaddata(\''.$code.'\',\'1\')"><h2>Watched</h2></div><br/><br/>';
+            echo '  <div onclick="wdjLoaddata(\''.$code.'\',\'1\')"><h2>Watched</h2></div><br/>';
             echo '  <div onclick="wdjLoaddata(\''.$code.'\',\'0\')"><h2>Not Watched</h2></div>';
         }
 
