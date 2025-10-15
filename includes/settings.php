@@ -45,4 +45,25 @@ function wdj_mp_admin_page() {
         echo '<p>No movies found.</p>';
     }
     echo '</div>';
+
+
+    // Danger zone: toggle purge-on-uninstall
+    if ( isset($_POST['wdj_mp_toggle_purge']) && check_admin_referer('wdj_mp_toggle_purge') ) {
+        update_option('wdj_mp_purge_on_uninstall', isset($_POST['purge_confirm']) ? '1' : '0');
+        echo '<div class="notice notice-success"><p>Purge on uninstall '
+            . (get_option('wdj_mp_purge_on_uninstall','0')==='1' ? 'ENABLED' : 'DISABLED')
+            . '.</p></div>';
+    }
+
+    echo '<hr><h2 style="color:#b32d2e">Danger zone</h2>';
+    echo '<form method="post" onsubmit="return confirm(\'This controls table deletion on uninstall. Continue?\');">';
+    wp_nonce_field('wdj_mp_toggle_purge');
+    $checked = get_option('wdj_mp_purge_on_uninstall','0')==='1' ? 'checked' : '';
+    echo '<label><input type="checkbox" name="purge_confirm" value="1" ' . $checked . '> ';
+    echo 'Delete the <code>' . esc_html( wdj_mp_table() ) . '</code> table when this plugin is uninstalled.</label><br><br>';
+    submit_button('Save setting', 'secondary', 'wdj_mp_toggle_purge', false);
+    echo '</form>';
+
+
+
 }

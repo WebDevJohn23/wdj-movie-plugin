@@ -2,45 +2,77 @@
 
 **Author:** WebDevJohn  
 **License:** GPL-2.0+  
-**Status:** Active
+**Status:** Active – initial development
+
+---
 
 ## Overview
-Displays movies currently playing at selected Regal theatres. Pulls poster URLs and basic details from regmovies.com, stores them in WordPress, and renders via shortcode.
+
+WDJ Movie Plugin displays movies currently playing at selected Regal theatres.  
+It pulls movie titles and basic details from **regmovies.com**, stores them in a custom WordPress table,  
+and displays results on the front end using a shortcode.
+
+This plugin is designed for clarity and extensibility, making it a simple example of real-world data integration inside WordPress.
+
+---
 
 ## Features
-- Scrapes theatre pages once per refresh
-- Stores unique movies with a list of theatres
-- Shortcode front end
-- Admin refresh page
+
+- Scrapes Regal theatre pages once per admin refresh
+- Stores **unique movies** with a list of associated theatres
+- Provides `[wdj_movies]` shortcode for front-end display
+- Simple admin settings page under **Settings → WDJ Movie Plugin**
+- Modular code organized into `includes/` (db, functions, shortcode, settings)
+
+---
 
 ## Installation
-1. Upload to `/wp-content/plugins/wdj-movie-plugin/`.
-2. Activate in WordPress.
-3. Go to **Settings → WDJ Movie Plugin** and click **Refresh**.
+
+1. Clone or download this repository into your WordPress `wp-content/plugins/` directory
+2. Activate **WDJ Movie Plugin** from the WordPress admin → Plugins page
+3. Navigate to **Settings → WDJ Movie Plugin**
+4. Click **Refresh Theatre Data** to populate the movie list
+5. Use the shortcode `[wdj_movies]` in any post or page
+
+---
+
+## Current Limitations
+
+- Poster URLs and extra movie metadata (release date, synopsis, etc.) are **in progress**
+- Theatre list is currently hard-coded
+- Only tested with Regal HTML structure as of October 2025
+
+---
+
+## Roadmap
+
+- ✅ Basic theater scraper and shortcode display
+- ⏳ Poster and description fetch from individual movie pages
+- ⏳ Option to add or remove theaters in admin
+- ⏳ Improved front-end layout with responsive grid and sticky section headers
+
+---
 
 ## Usage
+
 Place this on a page or post:
+
 ```
 [wdj_movies]
 ```
-Optional status filter:
-```
-[wdj_movies status="0"]  // 0 in theatres, 1 watched, 2 not interested
-```
 
-## Refresh
-- Admin page triggers a scrape of configured theatre URLs.
-- Posters are not downloaded. Stored as direct CDN URLs.
+Displays a grid of movies currently playing across your selected theaters.
 
-## Notes
-- If a date is missing on the listing, `dateStarted` stays null and is hidden on output.
-- If a theatre page is blocked by a bot wall, zero rows will be added for that theatre.
+---
 
-## Roadmap
-- Hourly cron refresh toggle
-- Duplication guard improvements
-- Per-theatre counts on refresh status
-- Optional split into `wp_wdj_movies_data` and a theatres mapping table
+## Contributing
+
+Pull requests and issue reports are welcome once the repository is public.  
+Please test locally before submitting.
+
+---
 
 ## License
-GPL-2.0+. See `LICENSE`.
+
+This project is licensed under the **GNU General Public License v2.0 or later (GPL-2.0+)**.  
+See the `LICENSE` file for details.
