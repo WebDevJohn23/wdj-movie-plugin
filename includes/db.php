@@ -3,7 +3,7 @@ if ( ! defined('ABSPATH') ) exit;
 
 function wdj_mp_table() {
     global $wpdb;
-    return $wpdb->prefix . 'movies';
+    return $wpdb->prefix . 'wdj_movies_data';
 }
 
 function wdj_mp_install_movies_table() {
