@@ -3,7 +3,7 @@
 /*
 Plugin Name: WDJ Movie Plugin
 Plugin URI: https://github.com/WebDevJohn23/wdj-movie-plugin
-Description: Display movie showtimes and posters.
+Description: Scrapes Regal theater pages, stores movies in a custom table, and displays results in the admin panel.
 Version: 1.0.0
 Author: Johnathan Julig
 License: GPL-2.0+
@@ -12,16 +12,16 @@ Text Domain: wdj-movie-plugin
 Update URI: https://github.com/WebDevJohn23/wdj-movie-plugin
 */
 
-// Uncomment below to debug
+if ( ! defined('ABSPATH') ) exit;
 
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+// --- Load core includes ---
+require_once plugin_dir_path(__FILE__) . 'includes/db.php';
+require_once plugin_dir_path(__FILE__) . 'includes/functions.php';
+require_once plugin_dir_path(__FILE__) . 'includes/settings.php';
+require_once plugin_dir_path(__FILE__) . 'includes/shortcode.php';
 
-
-// add required files here
-require_once('includes/settings.php');
-
+// --- Create database table on activation ---
+register_activation_hook(__FILE__, 'wdj_mp_install_movies_table');
 
 
 // sets the plugin settings link
